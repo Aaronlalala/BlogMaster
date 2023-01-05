@@ -3,3 +3,4 @@ __pycache__/
 
 /local
 /frontend/node_modules
+*.pyc

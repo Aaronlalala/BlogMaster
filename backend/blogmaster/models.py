@@ -21,3 +21,4 @@ class Comment(models.Model):
     text = models.CharField(max_length=200)
     creation_time = models.DateField()
     post = models.ForeignKey(Post, on_delete=models.PROTECT)
+
