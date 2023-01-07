@@ -1,49 +1,60 @@
 from rest_framework.decorators import api_view
-from django.shortcuts import render
-from django.http import HttpResponse
-from django.http import JsonResponse
+from rest_framework.response import Response
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
-import json
+from .models import Post
+from .serializers import UserSerializer, PostSerializer
+from django.contrib.auth import authenticate, login, logout
+from django.utils import timezone
 
 # Create your views here.
 # Views are equivalent to routes in JavaScript
 
-
-def main(reqeust):
-    return HttpResponse("<h1>Hello</h1>")
-
+# django.middleware.csrf.get_token()
 @api_view(["POST"])
 def signup(request):
-    data = json.loads(request.body)
-    username = data['username']
-    password = data['password']
-    email = data['email']
-    firstname = data['firstname']
-    lastname = data['lastname']
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return Response({'success': True, 'user_id': user.id}, status=200)
     
-    try:
-        user = User.objects.create_user(username=username, password=password, email=email, first_name=firstname, last_name=lastname)
-        user.save()
-        
-        return HttpResponse(json.dumps({'success': True}), content_type='application/json', status=200)
-    except:
-        # Return a failure response if the username is already taken
-        return HttpResponse(json.dumps({'success': False}), content_type='application/json', status=400)
+    return Response({'success': False, "error_message": serializer.errors}, status=400)
 
 
 
 @api_view(["POST"])
-def login(request):
-    data = json.loads(request.body)
-    username = data['username']
-    password = data['password']
+def login_action(request):
+    username = request.data['username']
+    password = request.data['password']
 
     user = authenticate(request, username=username, password=password)
 
     if user is not None:
-        return HttpResponse(json.dumps({'success': True}), content_type='application/json', status=200)
+        login(request, user)
+        # Get token and add in response
+        return Response({'success': True}, status=200)
 
     else:
-        return HttpResponse(json.dumps({'success': False}), content_type='application/json', status=400)
+        return Response({'success': False, 'error_message': "Log in failed"}, status=400)
 
+
+
+@api_view(['POST'])
+def logout_action(request):
+    logout(request)
+    return Response({'success': True}, status=200)
+
+
+
+@api_view(["POST"])
+def create_post(request):
+    data = request.data
+    try:
+        text = data['text']
+        user = request.user
+        creation_time = timezone.now()
+
+        post = Post.objects.create(text=text, user=user, creation_time=creation_time)
+        post.save()
+        return Response({'success': True}, status=201)
+    except Exception as e:
+        return Response({'success': False, 'error_message': str(e)}, status=400)
